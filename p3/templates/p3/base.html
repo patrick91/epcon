@@ -93,7 +93,7 @@
     <meta name="google-site-verification" content="kBsSy1heDIyy-W34t57N5-RsOKonmK54u7zn0mC8mv8" />
     {% render_block "css" %}
     {% block OPENGRAPH %}
-    <meta property="og:image" content="{{ DEFAULT_URL_PREFIX }}{{ STATIC_URL }}p6/images/opengraph-pycon-logo.png" />
+    <meta property="og:image" content="https://www.pycon.it/media/filer_public/68/44/6844ea4f-0676-4cfc-a6e7-11559dc95639/pycon6_150.png" />
     <meta property="fb:admins" content="789244177" />
     {% endblock %}
 </head>
@@ -115,8 +115,10 @@
         <nav id="navigation-toggle" role="navigation">
             <ul class="clearfix">
                 {% show_menu 0 1 1 1  %}
+                {% comment %}
+                # If you want to enable more languages remove this comment
                 {% language_chooser "p3/includes/langnav.html" "native" %}
-                {% if request.user.is_authenticated %}
+                {% endcomment %}
                 <li class="right">
                 {% if request.user.is_authenticated %}
                     <a class="username" href="{% url "assopy-profile" %}"><i class="fa fa-user"></i>&nbsp;{{ request.user.assopy_user.name }}</a>
@@ -128,7 +130,9 @@
                     {% endif %}
                         <a href="/accounts/logout/?next=/"><i class="fa fa-sign-out"></i>Log out</a>
                 {% else %}
+
                     <a href="/accounts/login/?next={{ request.META.PATH_INFO }}">Log in</a>
+                    <a href="{% url "assopy-new-account" %}?next={{ next }}">Sign up</a>
                 {% endif %}
                 </li>
                 {% endif %}
@@ -159,8 +163,8 @@
 <div class="bg-red">
     <div class="grid-container">
         <div class="grid-50 prefix-25">
-            <a href="https://www.facebook.com/pyconitalia" target="_blank"><img src="{% static 'p6/images/facebook.svg' %}" /></a>
-            <a href="https://twitter.com/pyconit" target="_blank"><img src="{% static 'p6/images/twitter.svg' %}" /></a>
+            <a href="https://www.facebook.com/europython" target="_blank"><img src="{% static 'p6/images/facebook.svg' %}" /></a>
+            <a href="https://twitter.com/europython" target="_blank"><img src="{% static 'p6/images/twitter.svg' %}" /></a>
             <a href="/blog/feeds/latest/"><img src="{% static 'p6/images/rss.svg' %}" /></a>
         </div>
     </div>

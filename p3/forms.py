@@ -22,6 +22,7 @@ TALK_DURATION = (
     (90, _('90 minutes inc Q&A')),
 )
 
+
 class P3TalkFormMixin(object):
     def clean(self):
         data = super(P3TalkFormMixin, self).clean()
@@ -42,6 +43,7 @@ class P3TalkFormMixin(object):
             data['qa_duration'] = 0
 
         return data
+
 
 class P3SubmissionForm(P3TalkFormMixin, cforms.SubmissionForm):
     duration = forms.TypedChoiceField(
@@ -91,12 +93,14 @@ class P3SubmissionForm(P3TalkFormMixin, cforms.SubmissionForm):
         choices=cmodels.TALK_LANGUAGES,
         initial='it', required=False)
 
+    sub_community = forms.ChoiceField(
+        label=_('Sub community'),
+        help_text=_('Select the sub community this talk is intended for.'),
+        choices=models.TALK_SUBCOMMUNITY,
+        initial='',
+        required=False)
+
     def __init__(self, user, *args, **kwargs):
-#         data = {
-#             'mobile': user.assopy_user.phone,
-#             'birthday': user.assopy_user.birthday,
-#             'activity_homepage': user.assopy_user.www,
-#         }
         data = {}
         data.update(kwargs.get('initial', {}))
         kwargs['initial'] = data
@@ -117,7 +121,11 @@ class P3SubmissionForm(P3TalkFormMixin, cforms.SubmissionForm):
         p3s.first_time = data['first_time']
         p3s.save()
 
+        models.P3Talk.objects\
+            .create(talk=talk, sub_community=data['sub_community'])
+
         return talk
+
 
 class P3SubmissionAdditionalForm(P3TalkFormMixin, cforms.TalkForm):
     duration = P3SubmissionForm.base_fields['duration']
@@ -126,6 +134,7 @@ class P3SubmissionAdditionalForm(P3TalkFormMixin, cforms.TalkForm):
     type = P3SubmissionForm.base_fields['type']
     abstract = P3SubmissionForm.base_fields['abstract']
     language = P3SubmissionForm.base_fields['language']
+    sub_community = P3SubmissionForm.base_fields['sub_community']
 
     class Meta(cforms.TalkForm.Meta):
         exclude = ('duration', 'qa_duration',)
@@ -134,18 +143,28 @@ class P3SubmissionAdditionalForm(P3TalkFormMixin, cforms.TalkForm):
         super(P3SubmissionAdditionalForm, self).__init__(*args, **kwargs)
         if self.instance:
             self.fields['duration'].initial = self.instance.duration
+            if self.instance.id:
+                self.fields['sub_community'].initial = self.instance.p3_talk.sub_community
 
     def save(self, *args, **kwargs):
         talk = super(P3SubmissionAdditionalForm, self).save(*args, **kwargs)
         talk.duration = self.cleaned_data['duration']
         talk.qa_duration = self.cleaned_data['qa_duration']
         talk.save()
+        try:
+            talk.p3_talk.sub_community = self.cleaned_data['sub_community']
+            talk.p3_talk.save()
+        except models.P3Talk.DoesNotExist:
+            models.P3Talk.objects\
+                .create(talk=talk, sub_community=self.cleaned_data['sub_community'])
         return talk
+
 
 class P3TalkForm(P3TalkFormMixin, cforms.TalkForm):
     duration = P3SubmissionForm.base_fields['duration']
     type = P3SubmissionForm.base_fields['type']
     abstract = P3SubmissionForm.base_fields['abstract']
+    sub_community = P3SubmissionForm.base_fields['sub_community']
 
     class Meta(cforms.TalkForm.Meta):
         exclude = ('duration', 'qa_duration',)
@@ -154,19 +173,24 @@ class P3TalkForm(P3TalkFormMixin, cforms.TalkForm):
         super(P3TalkForm, self).__init__(*args, **kwargs)
         if self.instance:
             self.fields['duration'].initial = self.instance.duration
+            self.fields['sub_community'].initial = self.instance.p3_talk.sub_community
 
     def save(self, *args, **kwargs):
         talk = super(P3TalkForm, self).save(*args, **kwargs)
         talk.duration = self.cleaned_data['duration']
         talk.qa_duration = self.cleaned_data['qa_duration']
         talk.save()
+        talk.p3_talk.sub_community = self.cleaned_data['sub_community']
+        talk.p3_talk.save()
         return talk
+
 
 class P3SpeakerForm(cforms.SpeakerForm):
     bio = forms.CharField(
         label=_('Compact biography'),
         help_text=_('Short biography (one or two paragraphs). Do not paste your CV'),
         widget=cforms.MarkEditWidget,)
+
 
 class FormTicket(forms.ModelForm):
     ticket_name = forms.CharField(max_length=60, required=False, help_text='Name of the attendee')
@@ -230,11 +254,13 @@ class FormTicket(forms.ModelForm):
             forms.ValidationError('invalid name')
         return data
 
+
 class FormTicketPartner(forms.ModelForm):
     name = forms.CharField(max_length=60, required=False, help_text='Real name of the person that will attend this specific event.')
     class Meta:
         model = cmodels.Ticket
         fields = ('name',)
+
 
 class FormTicketSIM(forms.ModelForm):
     ticket_name = forms.CharField(max_length=60, help_text='The SIM owner')
@@ -243,6 +269,7 @@ class FormTicketSIM(forms.ModelForm):
         exclude = ('ticket',)
         fields = ('ticket_name', 'sim_type', 'plan_type', 'document',)
 
+
 class FormTicketRoom(forms.ModelForm):
     ticket_name = forms.CharField(max_length=60, help_text='The person who will stay at the hotel')
     class Meta:
@@ -250,10 +277,12 @@ class FormTicketRoom(forms.ModelForm):
         exclude = ('ticket',)
         fields = ('ticket_name', 'document', 'unused')
 
+
 class FormSprint(forms.ModelForm):
     class Meta:
         model = models.Sprint
         exclude = ('user', 'conference',)
+
 
 class P3ProfileForm(cforms.ProfileForm):
     bio = forms.CharField(
@@ -348,6 +377,7 @@ class P3ProfilePublicDataForm(P3ProfileForm):
         p3p.interests.set(*data.get('interests', ''))
         return profile
 
+
 class P3ProfileBioForm(P3ProfileForm):
     bio = forms.CharField(
         label=_('Compact biography'),
@@ -363,6 +393,7 @@ class P3ProfileBioForm(P3ProfileForm):
         profile.setBio(data.get('bio', ''))
         return profile
 
+
 class P3ProfileVisibilityForm(P3ProfileForm):
     visibility = forms.ChoiceField(choices=cmodels.ATTENDEEPROFILE_VISIBILITY, widget=forms.RadioSelect)
     class Meta:
@@ -371,6 +402,7 @@ class P3ProfileVisibilityForm(P3ProfileForm):
 
     def clean_bio(self):
         return getattr(self.instance.getBio(), 'body', '')
+
 
 class P3ProfilePictureForm(P3ProfileForm):
     opt = forms.ChoiceField(choices=(
@@ -418,6 +450,7 @@ class P3ProfilePictureForm(P3ProfileForm):
         p3p.save()
         return profile
 
+
 class P3ProfilePersonalDataForm(forms.ModelForm):
     first_name = forms.CharField(max_length=30)
     last_name = forms.CharField(max_length=30)
@@ -460,6 +493,7 @@ class P3ProfilePersonalDataForm(forms.ModelForm):
                 raise forms.ValidationError(_('This field is required for a speaker'))
         return value
 
+
 class P3ProfileEmailContactForm(forms.Form):
     email = forms.EmailField(label="Enter new email")
 
@@ -474,6 +508,7 @@ class P3ProfileEmailContactForm(forms.Form):
                 raise forms.ValidationError(_('Email already registered'))
         return value
 
+
 class P3ProfileSpamControlForm(forms.ModelForm):
     spam_recruiting = forms.BooleanField(label=_('I want to receive a few selected job offers through PyCon.'), required=False)
     spam_user_message = forms.BooleanField(label=_('I want to receive private messages from other partecipants.'), required=False)
@@ -482,18 +517,24 @@ class P3ProfileSpamControlForm(forms.ModelForm):
         model = models.P3Profile
         fields = ('spam_recruiting', 'spam_user_message', 'spam_sms')
 
+
 class HotelReservationsFieldWidget(forms.Widget):
+    def __init__(self, *args, **kw):
+        super(HotelReservationsFieldWidget, self).__init__(*args, **kw)
+        self.booking = models.HotelBooking.objects\
+            .get(conference=settings.CONFERENCE_CONFERENCE)
+
     def value_from_datadict(self, data, files, name):
         if name in data:
-            # data è l'initial_data, contiene i dati già in forma normalizzata
+            # data is initial_data, with content already in normalized form
             return data[name]
-        # data è un QueryDict, o cmq proviene da una request
+        # data is a QueryDict, or it's coming from a request anyway
         fares = data.getlist(name + '_fare')
         qtys = data.getlist(name + '_qty')
         periods = data.getlist(name + '_period')
 
-        # qualcuno si è messo a giocare con i dati in ingresso, interrompo
-        # tutto inutile passare per la validazione
+        # Someone has been playing with input data, stopping here as
+        # it's pointless to attempt validation.
         if len(fares) != len(qtys) or len(periods) != len(fares) * 2:
             raise ValueError('')
 
@@ -503,7 +544,7 @@ class HotelReservationsFieldWidget(forms.Widget):
             args = [iter(iterable)] * n
             return izip_longest(fillvalue=fillvalue, *args)
 
-        start = settings.P3_HOTEL_RESERVATION['period'][0]
+        start = self.booking.booking_start
         values = []
         for row in zip(fares, qtys, grouper(2, periods)):
             values.append({
@@ -515,10 +556,7 @@ class HotelReservationsFieldWidget(forms.Widget):
         return values
 
     def render(self, name, value, attrs=None):
-        try:
-            start = settings.P3_HOTEL_RESERVATION['period'][0]
-        except:
-            raise TypeError('P3_HOTEL_RESERVATION not set')
+        start = self.booking.booking_start
 
         from django.template.loader import render_to_string
         from conference import dataaccess as cdataaccess
@@ -536,14 +574,23 @@ class HotelReservationsFieldWidget(forms.Widget):
             elif f['code'][:2] == 'HB':
                 fares['HB'].append(f)
 
-        if not fares['HR'] or not fares['HB']:
+        if not fares['HR'] and not fares['HB']:
             return ''
 
         if not value:
-            value = [
-                {'fare': fares['HB'][0]['code'], 'qty': 0, 'period': settings.P3_HOTEL_RESERVATION['default']},
-                {'fare': fares['HR'][0]['code'], 'qty': 0, 'period': settings.P3_HOTEL_RESERVATION['default']},
-            ]
+            value = []
+            if fares['HB']:
+                value.append({
+                    'fare': fares['HB'][0]['code'],
+                    'qty': 0,
+                    'period': (self.booking.default_start, self.booking.default_end),
+                })
+            if fares['HR']:
+                value.append({
+                    'fare': fares['HR'][0]['code'],
+                    'qty': 0,
+                    'period': (self.booking.default_start, self.booking.default_end),
+                })
 
         types = getattr(self, 'types', ['HR', 'HB'])
         rows = []
@@ -560,6 +607,7 @@ class HotelReservationsFieldWidget(forms.Widget):
                 'period': map(lambda x: (x-start).days, entry['period']),
                 'fare': entry['fare'],
                 'fares': [],
+                'minimum_night': self.booking.minimum_night,
             }
             if k == 'HB':
                 ctx['label'] = _('Room sharing')
@@ -572,15 +620,17 @@ class HotelReservationsFieldWidget(forms.Widget):
 
             rows.append(ctx)
 
-        # XXX schifezza!
-        # per come ho implementato il rendering del widget ho bisogno di sapere
-        # qui e adesso se ci sono errori per mostrarli nel posto giusto.
-        # Purtroppo gli errori sono una proprietà del BoundField non del field
-        # ne tantomeno del widget. Questo codice è un accrocchio funziona
-        # perché nel templatetag aggancio al widget gli errori della form. Il
-        # modo pulito sarebbe implementare il rendering dei subwidget come
-        # avviene per il RadioInput, passare dal filtro |field e inserire li
-        # gli errori.
+        # XXX crappy hack!
+        # given the way I've implemented widget rendering I need to
+        # know here and now if there are errors, to be able to show
+        # them in the correct position.
+        # Unfortunately the errors are a property of BoundField, not
+        # of Field or of the widget.
+        # This bad hack works just because in the templatetag I'm
+        # connecting to the widget the errors of the form.
+        # The clean way would be instead reimplementing the rendering
+        # of subwidget as it's done for RadioInput, passing from
+        # filter |field and inserting the error at that point.
         errors = [None] * len(rows)
         if hasattr(self, '_errors'):
             print self._errors
@@ -599,11 +649,12 @@ class HotelReservationsFieldWidget(forms.Widget):
 
         ctx = {
             'start': start,
-            'days': (settings.P3_HOTEL_RESERVATION['period'][1]-start).days,
+            'days': (self.booking.booking_end-start).days,
             'rows': rows,
             'name': name,
         }
         return render_to_string(tpl, ctx)
+
 
 class HotelReservationsField(forms.Field):
     widget = HotelReservationsFieldWidget
@@ -622,6 +673,7 @@ class HotelReservationsField(forms.Field):
                 del value[ix]
         return value
 
+
 class P3FormTickets(aforms.FormTickets):
     coupon = forms.CharField(
         label=_('Insert your discount code and save money!'),
@@ -632,17 +684,17 @@ class P3FormTickets(aforms.FormTickets):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super(P3FormTickets, self).__init__(*args, **kwargs)
-        # cancello il campo pagamento perché voglio posticipare questa scelta
+        # Deleting payment field because I want to delay this choice
         del self.fields['payment']
 
-        # i field relativi alle prenotazioni alberghiere si comportano in
-        # maniera speciale; innanzitutto possono essere "multipli" nel senso
-        # che per la stesso tipo di fare (ad esempio HB3 - posto letto in
-        # tripla) posso avere entry in periodi diversi (ogni entry può già
-        # specificare il numero di posti letto disponibili).
-        # Inoltre per ogni prenotazione deve essere specificato anche il "periodo".
+        # Fields related to hotel reservations behave differently;
+        # first of all the can be "multiple" in the sense that for the
+        # same fare type (e.g. HB3 - bed in triple room) there could
+        # entries for different periods (each entry can specify the
+        # number of available beds).
+        # Moreover each reservation must specify the "period".
 
-        # Decido di gestire questi casi con del codice custom nella clean
+        # These cases will be handled in custom code of clean
         for k in self.fields.keys():
             if k.startswith('H'):
                 del self.fields[k]
@@ -682,7 +734,7 @@ class P3FormTickets(aforms.FormTickets):
                 row['period'],
             ))
 
-        # voglio permettere l'acquisito solo ai partecipanti
+        # Only partecipants are allowed to buy
         conference_tickets = 0
         for k, v in self.cleaned_data.items():
             if k[0] == 'T' and v:
@@ -703,7 +755,10 @@ class P3FormTickets(aforms.FormTickets):
         try:
             models.TicketRoom.objects.can_be_booked(checks)
         except ValueError:
-            raise forms.ValidationError('0:Not available in this period (<a href="/hotel-concession/rooms-not-available" class="trigger-overlay">info</a>)')
+            raise forms.ValidationError((
+                '0:Not available in this period '
+                '(<a href="/hotel-concession/rooms-not-available" class="trigger-overlay">'
+                'info</a>)'))
 
         return data
 
@@ -735,12 +790,13 @@ class P3FormTickets(aforms.FormTickets):
 
         return data
 
+
 class P3EventBookingForm(cforms.EventBookingForm):
     def clean_value(self):
         data = super(P3EventBookingForm, self).clean_value()
         if not data:
             return data
-        # per prenotare un training è necessario un biglietto "standard" o "daily"
+        # A "standard" or "daily" ticket is required to book a training
         tt = cmodels.Event.objects\
             .filter(id=self.event)\
             .values('talk__type')[0]['talk__type']
@@ -752,7 +808,7 @@ class P3EventBookingForm(cforms.EventBookingForm):
         else:
             raise forms.ValidationError('ticket error')
 
-        # non posso prenotare piŭ di un helpdesk dello stesso tipo
+        # No more than one helpdesk per type can be booked
         helpdesk = None
         for t in cmodels.EventTrack.objects\
                     .filter(event=self.event)\

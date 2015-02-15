@@ -8,9 +8,10 @@ DEBUG = False
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    ('dvd', 'dvd@gnx.it'),
-    ('c8e', 'carlo.miron@gmail.com'),
-    ('yakky', 'github@spalletti.it'),
+    ('alexsavio', 'alexsavio@gmail.com'),
+    ('oiertwo'  , 'badtrex@gmail.com'),
+    ('fpliger'  , 'fabio.pliger@gmail.com'),
+    ('barrachri', 'barrachri@gmail.com'),
 )
 
 MANAGERS = ADMINS
@@ -25,7 +26,22 @@ sys.path.insert(0, os.path.join(PROJECT_DIR, 'deps'))
 
 SITE_DATA_ROOT = DATA_DIR + '/site'
 
-DATABASES = {
+DATABASE_TYPE = os.environ.get('DATABASE')
+
+if DATABASE_TYPE == "postgres":
+    user = os.environ.get('DATABASE_USER')
+    password = os.environ.get('DATABASE_PASSWORD')
+    dbname = os.environ.get('DATABASE_NAME')
+    DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': dbname,
+        'USER': user,
+        'PASSWORD': password,
+    }
+}
+else:
+    DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': SITE_DATA_ROOT + '/p3.db',
@@ -39,15 +55,18 @@ DEFAULT_FROM_EMAIL = 'info@pycon.it'
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
 # In a Windows environment this must be set to your system time zone.
-TIME_ZONE = 'Europe/Rome'
+TIME_ZONE = 'Europe/Madrid'
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
-LANGUAGE_CODE = 'it'
+LANGUAGE_CODE = 'en'
 
 ugettext = lambda s: s
 LANGUAGES = (
-    ('it', ugettext('Italiano')),
+    # disabled italian
+    #('it', ugettext('Italiano')),
+    ('es', ugettext('Spanish')),
+    ('eus', ugettext('Basque')),
     ('en', ugettext('English')),
 )
 
@@ -112,6 +131,27 @@ TEMPLATE_LOADERS = (
 
 from django.conf import global_settings
 
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '672999261902-vi58eghq2jjf6ai1fio1a6t7d7q1c76n.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '0OnGot_90JjGeppVAKIghPgU'
+LOGIN_REDIRECT_URL = '/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '672999261902-vi58eghq2jjf6ai1fio1a6t7d7q1c76n.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '0OnGot_90JjGeppVAKIghPgU'
+
+SOCIAL_AUTH_PIPELINE = (
+    'social.pipeline.social_auth.social_details',
+    'social.pipeline.social_auth.social_uid',
+    'social.pipeline.social_auth.auth_allowed',
+    'social.pipeline.social_auth.social_user',
+    'social.pipeline.user.get_username',
+    'social.pipeline.user.create_user',
+    # THIS IS IMPORTANT!!!! Connect new authenticated users to profiles
+    # of the important project apps!!
+    'p3.views.profile.connect_profile_to_assopy',
+    'social.pipeline.social_auth.associate_user',
+    'social.pipeline.social_auth.load_extra_data',
+    'social.pipeline.user.user_details'
+)
+
 TEMPLATE_CONTEXT_PROCESSORS = (
     "django.contrib.auth.context_processors.auth",
     'django.contrib.messages.context_processors.messages',
@@ -128,6 +168,10 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     "sekizai.context_processors.sekizai",
     "cms.context_processors.cms_settings",
     "django.core.context_processors.static",
+
+
+   'social.apps.django_app.context_processors.backends',
+   'social.apps.django_app.context_processors.login_redirect',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -165,10 +209,14 @@ LOCALE_PATHS = (
 
 INSTALLED_APPS = (
     'filebrowser',
-    # attenzione l'ordine tra p3/assopy/admin è importante per risolvere
-    # correttamente i templates
+    # Warning: the sequence p3/assopy/admin is important to be able to
+    # resolve correctly templates
     'p3',
     'assopy',
+    'assopy.stripe',
+    'conference',
+
+    'social.apps.django_app.default',
 
     'djangocms_admin_style',
     'django.contrib.auth',
@@ -199,7 +247,7 @@ INSTALLED_APPS = (
     'authority',
     #'pages',
     'mptt',
-    'conference',
+
     'microblog',
     'hcomments',
     'django_xmlrpc',
@@ -269,7 +317,13 @@ AUTHENTICATION_BACKENDS = (
     'assopy.auth_backends.EmailBackend',
     'assopy.auth_backends.JanRainBackend',
     'django.contrib.auth.backends.ModelBackend',
+
+    'social.backends.facebook.FacebookOAuth2',
+   'social.backends.google.GoogleOAuth2',
+   'social.backends.twitter.TwitterOAuth',
+   # 'django.contrib.auth.backends.ModelBackend',
 )
+
 
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
@@ -403,7 +457,7 @@ CONFERENCE_GOOGLE_MAPS = {
     'country': 'it',
 }
 
-CONFERENCE_CONFERENCE = 'pycon6'
+CONFERENCE_CONFERENCE = 'ep2015'
 CONFERENCE_SEND_EMAIL_TO = [ 'pycon-organization@googlegroups.com', ]
 CONFERENCE_VOTING_DISALLOWED = 'https://www.pycon.it/voting-disallowed'
 
@@ -420,7 +474,7 @@ CONFERENCE_ADMIN_TICKETS_STATS_EMAIL_LOAD_LIBRARY = ['p3', 'conference']
 
 
 def CONFERENCE_TICKETS(conf, ticket_type=None, fare_code=None):
-    from conference import models
+    from p3 import models
 
     tickets = models.Ticket.objects \
         .filter(fare__conference=conf, orderitem__order___complete=True)
@@ -435,14 +489,14 @@ def CONFERENCE_TICKETS(conf, ticket_type=None, fare_code=None):
 
 
 def CONFERENCE_VOTING_OPENED(conf, user):
-    # possono accedere alla pagina:
-    # chiunque durante il community voting
-    #   i superuser
-    #   gli speaker (della conferenza in corso)
-    #   chi ha il gruppo special "pre_voting"
+    # Can access the page:
+    #   anyone during community voting
+    #   superusers
+    #   speakers (of current conference)
+    #   who is in the special "pre_voting" group
     if conf.voting() or user.is_superuser:
         return True
-    from conference.models import TalkSpeaker, Speaker
+    from p3.models import TalkSpeaker, Speaker
 
     try:
         count = TalkSpeaker.objects.filter(
@@ -462,7 +516,7 @@ def CONFERENCE_VOTING_ALLOWED(user):
     if user.is_superuser:
         return True
 
-    from conference.models import TalkSpeaker, Speaker
+    from p3.models import TalkSpeaker, Speaker
 
     try:
         count = TalkSpeaker.objects.filter(
@@ -476,8 +530,8 @@ def CONFERENCE_VOTING_ALLOWED(user):
 
     from p3 import models
     from django.db.models import Q
-    # può votare chi ha almeno un biglietto confermato e che non ha
-    # assegnato a qualcun'altro
+    # Can vote who has at least one confirmed ticket that has
+    # not been assigned tosomeone else
     tickets = models.TicketConference.objects \
         .available(user, CONFERENCE_CONFERENCE) \
         .filter(Q(orderitem__order___complete=True) | Q(
@@ -489,7 +543,7 @@ def CONFERENCE_VOTING_ALLOWED(user):
 
 def CONFERENCE_SCHEDULE_ATTENDEES(schedule, forecast):
     from p3.stats import presence_days
-    from conference.models import Schedule
+    from p3.models import Schedule
 
     if not isinstance(schedule, Schedule):
         output = {}
@@ -521,8 +575,8 @@ CONFERENCE_ADMIN_ATTENDEE_STATS = (
 
 
 def CONFERENCE_VIDEO_COVER_EVENTS(conference):
-    from conference import dataaccess
-    from conference import models
+    from p3 import dataaccess
+    from p3 import models
     from datetime import timedelta
 
     conf = models.Conference.objects.get(code=conference)
@@ -530,10 +584,10 @@ def CONFERENCE_VIDEO_COVER_EVENTS(conference):
     def valid(e):
         if e['tags'] & set(['special', 'break']):
             return False
-        # gli ultimi due giorni si tengono gli sprint
+        # sprints are in the last two days
         if e['time'].date() >= conf.conference_end - timedelta(days=1):
             return False
-        # gli eventi serali non vengono ripresi
+        # evening events are not recorded
         if e['time'].hour >= 20:
             return False
         if len(e['tracks']) == 1 and (
@@ -548,7 +602,7 @@ def CONFERENCE_VIDEO_COVER_IMAGE(eid, type='front', thumb=False):
     import re
     import os.path
     from PIL import Image, ImageDraw, ImageFont
-    from conference import dataaccess
+    from p3 import dataaccess
 
     event = dataaccess.event_data(eid)
     conference = event['conference']
@@ -586,7 +640,7 @@ def CONFERENCE_VIDEO_COVER_IMAGE(eid, type='front', thumb=False):
             lines[ix] = line
         return lines
 
-    if conference in ('ep2012', 'ep2013'):
+    if conference in ('ep2012', 'ep2013', 'ep2015'):
         master = Image.open(os.path.join(stuff, 'cover-start-end.png')).convert(
             'RGBA')
 
@@ -601,7 +655,7 @@ def CONFERENCE_VIDEO_COVER_IMAGE(eid, type='front', thumb=False):
                 os.path.join(stuff, 'Arial_Unicode.ttf'),
                 21, encoding="unic")
             y = 175
-        elif conference == 'ep2013':
+        elif conference in ('ep2013', 'ep2015'):
             ftitle = ImageFont.truetype(
                 os.path.join(stuff, 'League_Gothic.otf'),
                 36, encoding="unic")
@@ -615,8 +669,8 @@ def CONFERENCE_VIDEO_COVER_IMAGE(eid, type='front', thumb=False):
 
         title = event['name']
         if event.get('custom'):
-            # questo è un evento custom, se inizia con un anchor posso
-            # estrane il riferimento
+            # this is a custom event, if starts with an anchor we can
+            # extract the reference
             m = re.match(r'<a href="(.*)">(.*)</a>', title)
             if m:
                 title = m.group(2)
@@ -657,7 +711,7 @@ def CONFERENCE_TALK_VIDEO_ACCESS(request, talk):
     u = request.user
     if u.is_anonymous():
         return False
-    from conference.models import Ticket
+    from p3.models import Ticket
 
     qs = Ticket.objects \
         .filter(id__in=[x.id for x in u.assopy_user.tickets()]) \
@@ -705,15 +759,9 @@ DEFAULT_URL_PREFIX = 'https://www.pycon.it'
 PINGBACK_TARGET_DOMAIN = 'www.pycon.it'
 COMMENTS_APP = 'hcomments'
 
-from datetime import date
-
 P3_FARES_ENABLED = lambda u: True
 P3_NEWSLETTER_SUBSCRIBE_URL = "http://groups.google.com/group/python-italia-aps/boxsubscribe"
 P3_TWITTER_USER = MICROBLOG_TWITTER_USERNAME
-P3_HOTEL_RESERVATION = {
-    'period': (date(2013, 6, 28), date(2013, 7, 9)),
-    'default': (date(2013, 7, 2), date(2013, 7, 6)),
-}
 P3_USER_MESSAGE_FOOTER = '''
 
 This message was sent from a participant at the conference PyconITalia.
@@ -735,7 +783,7 @@ def HCOMMENTS_RECAPTCHA(request):
 
 
 def HCOMMENTS_THREAD_OWNERS(o):
-    from conference.models import Talk
+    from p3.models import Talk
     from microblog.models import Post
 
     if isinstance(o, Talk):
@@ -842,7 +890,7 @@ def P3_LIVE_EMBED(request, track=None, event=None):
         raise ValueError('track or event, not both')
 
     if event:
-        # ep2012, tutti i keynote vengono trasmessi dalla track "lasagne"
+        # ep2012, all keynotes are recorded in track "lasagne"
         if 'keynote' in event['tags'] or len(event['tracks']) > 1:
             track = 'track2'
         else:
@@ -948,13 +996,19 @@ CRONJOBS = [
     ('@weekly', 'pycon.settings.cron_cleanup')
 ]
 
+STRIPE_ENABLED = True
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
+STRIPE_COMPANY_NAME = os.environ.get("STRIPE_COMPANY_NAME")
+STRIPE_COMPANY_LOGO = os.environ.get("STRIPE_COMPANY_LOGO")
+
 from settings_locale import *
 
 if DEBUG:
     LOGGING['loggers']['django.request']['handlers'].append('console')
-# i file sotto SECURE_MEDIA_ROOT devono essere serviti da django, questo if
-# serve ad evitare che vengano messi in una subdir di MEDIA_ROOT che
-# normalmente è servita da un webserver esterno.
+# files under SECURE_MEDIA_BOOT must be served by django, this if
+# is needed to avoid they end up in a subdir of MEDIA_ROOT that is
+# normally served by an external webserver
 import os.path
 
 check = os.path.commonprefix((MEDIA_ROOT, SECURE_MEDIA_ROOT))
