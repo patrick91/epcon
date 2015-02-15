@@ -741,21 +741,21 @@ ASSOPY_VIES_WSDL_URL = None
 ASSOPY_BACKEND = 'http://assopy.pycon.it/conference/externalcall'
 ASSOPY_SEARCH_MISSING_USERS_ON_BACKEND = True
 ASSOPY_TICKET_PAGE = 'p3-tickets'
-ASSOPY_SEND_EMAIL_TO = ['log@pycon.it']
+ASSOPY_SEND_EMAIL_TO = ['log']
 ASSOPY_REFUND_EMAIL_ADDRESS = {
-    'approve': ['info@pycon.it'],
+    'approve': ['info@pyss.org'],
     'execute': {
         None: ['dvd@gnx.it'],
-        'bank': ['matteo@pycon.it'],
+        'bank': ['info@pyss.org'],
     },
-    'credit-note': ['michele.bertoldi@gmail.com'],
+    'credit-note': ['info@pyss.org'],
 }
 
 ASSOPY_OTC_CODE_HANDLERS = {
     'e': 'p3.views.OTCHandler_E',
 }
 
-DEFAULT_URL_PREFIX = 'https://www.pycon.it'
+DEFAULT_URL_PREFIX = 'http://devlocal.europython.eu:8000'
 PINGBACK_TARGET_DOMAIN = 'www.pycon.it'
 COMMENTS_APP = 'hcomments'
 
