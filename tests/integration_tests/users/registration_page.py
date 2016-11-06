@@ -1,22 +1,22 @@
 from django.core.urlresolvers import reverse
 
-from webium import BasePage, Find
+# from webium import BasePage, Find
+
+from tests.base import BasePage
 
 from selenium.webdriver.common.by import By
 
 
 class RegistrationPage(BasePage):
-    first_name = Find(by=By.ID, value='id_first_name')
-    last_name = Find(by=By.ID, value='id_last_name')
-    email = Find(by=By.ID, value='id_email')
-    password1 = Find(by=By.ID, value='password1')
-    password2 = Find(by=By.ID, value='password2')
-    form = Find(by=By.XPATH, value='/html/body/div[1]/div/section/div/div[2]/div/form')
+    fields = {
+        'first_name': (By.ID, 'id_first_name'),
+        'last_name': (By.ID, 'id_last_name'),
+        'email': (By.ID, 'id_email'),
+        'password1': (By.ID, 'id_password1'),
+        'password2': (By.ID, 'id_password2'),
+        'form': (By.XPATH, '/html/body/div[1]/div/section/div/div[2]/div/form/fieldset[2]/button')
+    }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, base_url, *args, **kwargs):
         super(RegistrationPage, self).__init__(*args, **kwargs)
-
-        base_url = kwargs.pop('url', None)
-
-        if base_url:
-            self.url = base_url + reverse('assopy-new-account')
+        self.url = base_url + reverse('assopy-new-account')
