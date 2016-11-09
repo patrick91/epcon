@@ -1,8 +1,6 @@
 from django.core.urlresolvers import reverse
 
-# from webium import BasePage, Find
-
-from tests.base import BasePage
+from tests.integration_tests.base import BasePage
 
 from selenium.webdriver.common.by import By
 

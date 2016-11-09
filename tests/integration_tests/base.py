@@ -3,18 +3,8 @@ class BasePage(object):
         self.selenium = selenium
 
     def __getattr__(self, name):
-        lookup_data = None
-        for field, lookup in self.fields.iteritems():
-            if name != field:
-                continue
+        lookup_data = [lookup for field, lookup in self.fields.iteritems() if name == field][0]
 
-            lookup_data = lookup
-            break
-
-        if not lookup_data:
-            raise AttributeError
-
-        # lookup
         lookup_method = lookup_data[0]
         lookup_value = lookup_data[1]
 
