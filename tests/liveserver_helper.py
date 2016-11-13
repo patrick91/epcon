@@ -1,6 +1,3 @@
-import pytest
-import os
-
 from pytest_django.live_server_helper import LiveServer
 
 
