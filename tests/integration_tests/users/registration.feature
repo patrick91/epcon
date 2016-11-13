@@ -14,5 +14,4 @@ Feature: Create an account
             | first_name    | Justin                    |
             | last_name     | Pound                     |
             | email         | justing.pound@yahoo.nl    |
-            | password1     | my-is_secure              |
-            | password2     | my-is_secure              |
+            | password      | my-is_secure              |

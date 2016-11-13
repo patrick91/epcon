@@ -1,8 +1,8 @@
-from pytest_bdd import given, when, then
+from pytest_bdd import given, when, then, parsers
 
 
-@given('that the user has filled the registration form with')
-def fill_registration_form(context):
+@given(parsers.parse('that the user has filled the registration form with\n{data}'))
+def fill_registration_form(page, data):
     raise NotImplementedError(u'STEP: Given that the user has filled the registration form with')
 
 
