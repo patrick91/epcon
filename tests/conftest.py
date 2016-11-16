@@ -4,7 +4,7 @@ import pytest
 
 from tests.integration_tests.steps.page_steps import *  # noqa
 
-from tests.liveserver_helper import DebugableLiveServer
+from tests.liveserver_helper import DebugabbleLiveServer
 
 
 @pytest.fixture
@@ -47,6 +47,6 @@ def live_server(request):
         else:
             addr = 'localhost'
 
-    server = DebugableLiveServer(addr)
+    server = DebugabbleLiveServer(addr)
     request.addfinalizer(server.stop)
     return server
